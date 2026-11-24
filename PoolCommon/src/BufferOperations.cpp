@@ -8,7 +8,7 @@
 #include <cstring>
 #include <iostream>
 
-namespace PoolCommon
+namespace CommonLib
 {
 	namespace Buffer
 	{

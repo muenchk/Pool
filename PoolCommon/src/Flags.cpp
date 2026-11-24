@@ -6,7 +6,7 @@
 #include "Flags.h"
 
 
-namespace PoolCommon
+namespace CommonLib
 {
 	void Flags::SetFlag(uint64_t flag)
 	{
@@ -112,6 +112,21 @@ namespace PoolCommon
 		return true;
 	}
 
+	size_t Flags::Hash()
+	{
+		auto itr = _flags.begin();
+		std::size_t hs = 0;
+		if (itr != _flags.end()) {
+			hs = std::hash<uint64_t>{}(*itr);
+			itr++;
+		}
+		while (itr != _flags.end()) {
+			hs = hs ^ (std::hash<uint64_t>{}(*itr) << 1);
+			itr++;
+		}
+		return hs;
+	}
+
 	void FlagsUnique::SetFlag(uint64_t flag)
 	{
 		_flags.insert(flag);
@@ -212,6 +227,21 @@ namespace PoolCommon
 			return false;
 		}
 		return true;
+	}
+
+	size_t FlagsUnique::Hash()
+	{
+		auto itr = _flags.begin();
+		std::size_t hs = 0;
+		if (itr != _flags.end()) {
+			hs = std::hash<uint64_t>{}(*itr);
+			itr++;
+		}
+		while (itr != _flags.end()) {
+			hs = hs ^ (std::hash<uint64_t>{}(*itr) << 1);
+			itr++;
+		}
+		return hs;
 	}
 
 	FlagsBool::FlagsBool(size_t length)
@@ -329,5 +359,21 @@ namespace PoolCommon
 			return false;
 		}
 		return true;
+	}
+
+	size_t FlagsUnique::Hash()
+	{
+		auto itr = _flags.begin();
+		std::size_t hs = 0;
+		if (itr != _flags.end()) {
+			hs = std::hash<bool>{}(*itr);
+			itr++;
+		}
+		while (itr != _flags.end()) {
+			hs = hs ^ (std::hash<bool>{}(*itr) << 1);
+			itr++;
+		}
+		return hs;
+	}
 	}
 }

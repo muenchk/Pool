@@ -25,7 +25,7 @@
 		throw std::out_of_range("free: " + std::to_string(buffer.Free()) + ", trace: " + Buffer::GetCurrentStackTrace());
 //return false;
 
-namespace PoolCommon
+namespace CommonLib
 {
 	namespace Buffer
 	{

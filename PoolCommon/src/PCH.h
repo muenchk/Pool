@@ -22,6 +22,7 @@
 #include <boost/container/vector.hpp>
 #include <boost/smart_ptr.hpp>
 #include <boost/smart_ptr/make_shared.hpp>
+#include <boost/unordered_map.hpp>
 
 #include <fmt/format.h>
 

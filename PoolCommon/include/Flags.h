@@ -7,7 +7,7 @@
 
 #include "BufferOperations.h"
 
-namespace PoolCommon
+namespace CommonLib
 {
 	class Flags
 	{
@@ -33,6 +33,8 @@ namespace PoolCommon
 		bool WriteData(Buffer::ArrayBuffer& buffer);
 
 		bool ReadData(Buffer::ArrayBuffer& buffer);
+		
+		size_t Hash();
 	};
 	class FlagsUnique
 	{
@@ -58,6 +60,8 @@ namespace PoolCommon
 		bool WriteData(Buffer::ArrayBuffer& buffer);
 
 		bool ReadData(Buffer::ArrayBuffer& buffer);
+
+		size_t Hash();
 	};
 	class FlagsBool
 	{
@@ -102,5 +106,7 @@ namespace PoolCommon
 		bool WriteData(Buffer::ArrayBuffer& buffer);
 
 		bool ReadData(Buffer::ArrayBuffer& buffer);
+
+		size_t Hash();
 	};
 }

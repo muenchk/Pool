@@ -7,7 +7,7 @@
 
 #include <stacktrace>
 
-namespace PoolCommon
+namespace CommonLib
 {
 	namespace Buffer
 	{
