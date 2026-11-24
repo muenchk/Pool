@@ -1,0 +1,392 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": {
+      "major": 3,
+      "minor": 21,
+      "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "$env{PROJECT_PLATFORM_FLAGS} $env{PROJECT_TEXT_FLAGS} $env{PROJECT_COMPILER_FLAGS} $penv{CXX_FLAGS}"
+      },
+      "errors": {
+        "deprecated": true
+      },
+      "warnings": {
+        "deprecated": true,
+        "dev": true
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "intelliSenseMode": "$env{PROJECT_PLATFORM}-$env{PROJECT_COMPILER}-$env{PROJECT_ARCHITECTURE}",
+          "enableMicrosoftCodeAnalysis": true,
+          "enableClangTidyCodeAnalysis": true
+        }
+      }
+    },
+    {
+      "name": "vcpkg",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static-md",
+        "VCPKG_HOST_TRIPLET": "x64-windows-static-md",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+      }
+    },
+    {
+      "name": "ui",
+      "hidden": true,
+      "cacheVariables": {
+        "EnableUI": "ON"
+      }
+    },
+    {
+      "name": "vcpkg-linux",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-linux",
+        "VCPKG_HOST_TRIPLET": "x64-linux",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake"
+      }
+    },
+    {
+      "name": "win32",
+      "hidden": true,
+      "environment": {
+        "COMMONLIBSSE_PLATFORM": "-DWIN32_LEAN_AND_MEAN -DNOMINMAX",
+        "PROJECT_PLATFORM": "windows"
+      }
+    },
+    {
+      "name": "win32-unicode",
+      "hidden": true,
+      "inherits": "win32",
+      "environment": {
+        "COMMONLIBSSE_TEXT": "-DUNICODE -D_UNICODE"
+      }
+    },
+    {
+      "name": "x64",
+      "hidden": true,
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      }
+    },
+    {
+      "name": "generator-ninja",
+      "hidden": true,
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_MAKE_PROGRAM": "$env{NinjaPath}"
+      }
+    },
+    {
+      "name": "generator-ninja-fixedpath",
+      "hidden": true,
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_MAKE_PROGRAM": "/usr/bin/ninja"
+      }
+    },
+    {
+      "name": "clang",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-18",
+        "CMAKE_CXX_COMPILER": "clang++-18"
+      },
+      "environment": {
+        "PROJECT_COMPILER": "clang",
+        "PROJECT_COMPILER_FLAGS": "-O3 -Wno-overloaded-virtual -Wno-delete-non-abstract-non-virtual-dtor -Wno-inconsistent-missing-override -Wno-reinterpret-base-class -Wno-builtin-macro-redefined -Wno-deprecated-declarations -D__cpp_lib_char8_t -D__cpp_consteval -D__cpp_lib_format -fsized-deallocation"
+      }
+    },
+    {
+      "name": "clang19",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-19",
+        "CMAKE_CXX_COMPILER": "clang++-19"
+      },
+      "environment": {
+        "PROJECT_COMPILER": "clang",
+        "PROJECT_COMPILER_FLAGS": "-O3 -Wno-overloaded-virtual -Wno-delete-non-abstract-non-virtual-dtor -Wno-inconsistent-missing-override -Wno-reinterpret-base-class -Wno-builtin-macro-redefined -Wno-deprecated-declarations -D__cpp_lib_char8_t -D__cpp_consteval -D__cpp_lib_format"
+      }
+    },
+    {
+      "name": "gnu14",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc-14",
+        "CMAKE_CXX_COMPILER": "g++-14"
+      },
+      "environment": {
+        "PROJECT_COMPILER": "GNU",
+        "PROJECT_COMPILER_FLAGS": "-O3 -Wno-overloaded-virtual -Wno-multichar -Wno-builtin-macro-redefined -Wno-deprecated-declarations -D__cpp_lib_char8_t -D__cpp_lib_format"
+      }
+    },
+    {
+      "name": "gnu",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc-13",
+        "CMAKE_CXX_COMPILER": "g++-13"
+      },
+      "environment": {
+        "PROJECT_COMPILER": "GNU",
+        "PROJECT_COMPILER_FLAGS": "-O3 -Wno-overloaded-virtual -Wno-multichar -Wno-builtin-macro-redefined -Wno-deprecated-declarations -D__cpp_lib_char8_t -D__cpp_lib_format"
+      }
+    },
+    {
+      "name": "gnu14-debug",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc-14",
+        "CMAKE_CXX_COMPILER": "g++-14"
+      },
+      "environment": {
+        "PROJECT_COMPILER": "GNU",
+        "PROJECT_COMPILER_FLAGS": "-O3 -Wno-overloaded-virtual -Wno-multichar -Wno-builtin-macro-redefined -Wno-deprecated-declarations -D__cpp_lib_char8_t -D__cpp_lib_format -D_GLIBCXX_USE_CXX11_ABI=0"
+      }
+    },
+    {
+      "name": "msvc",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl"
+      },
+      "environment": {
+        "COMMONLIBSSE_COMPILER": "/permissive- /Zc:preprocessor /EHsc $penv{CXXFLAGS}"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "intelliSenseMode": "windows-msvc-x64",
+          "enableMicrosoftCodeAnalysis": true,
+          "enableClangTidyCodeAnalysis": true
+        }
+      }
+    },
+    {
+      "name": "clang-cl",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl"
+      },
+      "environment": {
+        "COMMONLIBSSE_COMPILER": "/permissive- /EHsc -Wno-overloaded-virtual -Wno-delete-non-abstract-non-virtual-dtor -D__cpp_lib_char8_t -D__cpp_consteval -D__cpp_lib_format $penv{CXXFLAGS}"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "intelliSenseMode": "windows-clang-x64",
+          "enableMicrosoftCodeAnalysis": true,
+          "enableClangTidyCodeAnalysis": true
+        }
+      }
+    },
+    {
+      "name": "build-tests",
+      "displayName": "Build Tests",
+      "hidden": true,
+      "description": "Include test suites in the build.",
+      "cacheVariables": {
+        "BUILD_TESTS": {
+          "type": "STRING",
+          "value": "ON"
+        }
+      }
+    },
+    {
+      "name": "win-release",
+      "inherits": [
+        "base",
+        "vcpkg",
+        "ui",
+        "win32-unicode",
+        "x64",
+        "generator-ninja",
+        "msvc"
+      ],
+      "displayName": "Windows (Release)",
+      "description": "Optimized release build.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/win-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": {
+          "type": "STRING",
+          "value": "Release"
+        }
+      }
+    },
+    {
+      "name": "win-debug",
+      "inherits": [
+        "base",
+        "vcpkg",
+        "ui",
+        "win32-unicode",
+        "x64",
+        "generator-ninja",
+        "msvc"
+      ],
+      "displayName": "Windows (Debug)",
+      "description": "Optimized release build.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/win-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": {
+          "type": "STRING",
+          "value": "Debug"
+        }
+      }
+    },
+    {
+      "name": "win-debug-tests",
+      "inherits": [
+        "base",
+        "vcpkg",
+        "ui",
+        "win32-unicode",
+        "x64",
+        "generator-ninja",
+        "build-tests",
+        "msvc"
+      ],
+      "displayName": "Windows (Debug, Tests)",
+      "description": "Optimized release build.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/win-debug-tests",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": {
+          "type": "STRING",
+          "value": "Debug"
+        }
+      }
+    },
+    {
+      "name": "win-release-tests",
+      "inherits": [
+        "base",
+        "vcpkg",
+        "ui",
+        "win32-unicode",
+        "x64",
+        "generator-ninja",
+        "build-tests",
+        "msvc"
+      ],
+      "displayName": "Windows (Release, Tests)",
+      "description": "Optimized release build.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/win-release-tests",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": {
+          "type": "STRING",
+          "value": "Release"
+        }
+      }
+    },
+    {
+      "name": "kali-release",
+      "inherits": [
+        "base",
+        "vcpkg-linux",
+        "ui",
+        "x64",
+        "clang",
+        "generator-ninja"
+      ],
+      "displayName": "Kali (Release)",
+      "binaryDir": "${sourceDir}/build/kali-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": {
+          "type": "STRING",
+          "value": "Release"
+        }
+      }
+    },
+    {
+      "name": "kali-debug",
+      "inherits": [
+        "kali-release"
+      ],
+      "displayName": "Kali (Debug)",
+      "binaryDir": "${sourceDir}/build/kali-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": {
+          "type": "STRING",
+          "value": "Debug"
+        }
+      }
+    },
+    {
+      "name": "kali-debug-tests",
+      "inherits": [
+        "kali-release",
+        "build-tests"
+      ],
+      "displayName": "Kali (Debug, Tests)",
+      "binaryDir": "${sourceDir}/build/kali-debug-tests",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": {
+          "type": "STRING",
+          "value": "Debug"
+        }
+      }
+    },
+    {
+      "name": "kali-release-tests",
+      "inherits": [
+        "kali-release",
+        "build-tests"
+      ],
+      "displayName": "Kali (Release, Tests)",
+      "binaryDir": "${sourceDir}/build/kali-release-tests",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": {
+          "type": "STRING",
+          "value": "Release"
+        }
+      }
+    },
+    {
+      "name": "kali-release-noui",
+      "inherits": [
+        "base",
+        "vcpkg-linux",
+        "x64",
+        "clang",
+        "generator-ninja"
+      ],
+      "displayName": "Kali-NoUI",
+      "binaryDir": "${sourceDir}/build/kali-release-noui",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": {
+          "type": "STRING",
+          "value": "Release"
+        }
+      }
+    }
+  ],
+  "buildPresets": [
+      {
+          "name": "release-msvc",
+          "displayName": "Release (MSVC)",
+          "configurePreset": "win-release",
+          "description": "Optimized release build."
+      },
+    {
+      "name": "debug-msvc",
+      "displayName": "Debug (MSVC)",
+      "configurePreset": "win-debug",
+      "description": "Optimized release build."
+    }
+  ]
+}

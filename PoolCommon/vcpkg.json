@@ -1,0 +1,52 @@
+{
+  "name": "example",
+  "version": "1",
+  "dependencies": [
+    "spdlog",
+    "fmt",
+    {
+      "name": "boost-stacktrace"
+    },
+    "boost-multiprecision",
+    "boost-circular-buffer",
+    "boost-bimap",
+    "boost-thread",
+    "boost-container",
+    "boost-unordered",
+    {
+      "name": "directxtk",
+      "platform": "windows"
+    },
+    "frozen",
+    {
+      "name": "infoware",
+      "features": [
+        "d3d"
+      ],
+      "platform": "windows"
+    },
+    "magic-enum",
+    "zycore",
+    "zydis",
+    "liblzma",
+    "stb"
+  ],
+  "features": {
+    "ui": {
+      "description": "ui",
+      "dependencies": [
+        {
+          "name": "imgui",
+          "features": [
+            "opengl3-binding",
+            "glfw-binding",
+            "freetype"
+          ]
+        },
+        "glfw3",
+        "glad",
+        "glm"
+      ]
+    }
+  }
+}
