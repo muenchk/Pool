@@ -20,6 +20,15 @@
 #define SAVE_WRITE(buffer, type, variable)     \
 	if (buffer.Write<type>(variable) == false) \
 		throw std::out_of_range("free: " + std::to_string(buffer.Free()) + ", trace: " + Buffer::GetCurrentStackTrace());  //return false;
+#define SAVE_WRITE_LIST(buffer, type, variable)     \
+	if (buffer.WriteList<type>(variable) == false) \
+		throw std::out_of_range("free: " + std::to_string(buffer.Free()) + ", trace: " + Buffer::GetCurrentStackTrace());  //return false;
+#define SAVE_WRITE_VECTOR(buffer, type, variable)    \
+	if (buffer.WriteVector<type>(variable) == false) \
+		throw std::out_of_range("free: " + std::to_string(buffer.Free()) + ", trace: " + Buffer::GetCurrentStackTrace());  //return false;
+#define SAVE_WRITE_BUFFER(buffer, variable, size) \
+	if (buffer.Write(variable, size) == false) \
+		throw std::out_of_range("free: " + std::to_string(buffer.Free()) + ", trace: " + Buffer::GetCurrentStackTrace());  //return false;
 #define SAVE_WRITE_EXPR(expression) \
 	if (expression == false)        \
 		throw std::out_of_range("free: " + std::to_string(buffer.Free()) + ", trace: " + Buffer::GetCurrentStackTrace());
