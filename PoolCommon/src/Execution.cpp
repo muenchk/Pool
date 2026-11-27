@@ -6,6 +6,11 @@
 #include "Execution.h"
 #include "Input.h"
 #include "Serializable.h"
+#include "Processes.h"
+
+#include "Hashing.h"
+
+#define PIPE_SIZE 1048576
 
 #if defined(unix) || defined(__unix__) || defined(__unix)
 #	include <poll.h>
@@ -242,12 +247,12 @@ namespace CommonLib
 #endif
 		_pipeinit = true;
 		_avail = true;
-		profile(TimeProfiling, "");
+		logprofile(TimeProfiling, "");
 	}
 
 	bool Execution::IsRunning()
 	{
-		StartProfilingDebug;
+		StartProfiling;
 		if (!_valid) {
 			logcritical("called IsRunning after invalidation");
 			return false;
@@ -260,7 +265,7 @@ namespace CommonLib
 #elif defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
 		bool res = Processes::GetProcessRunning(pi.hProcess);
 #endif
-		profileDebug(TimeProfilingDebug, "");
+		PROF_3(TimeProfiling, "");
 		if (res)
 			return true;
 		else {
@@ -394,7 +399,7 @@ namespace CommonLib
 
 	bool Execution::CheckInput()
 	{
-		StartProfilingDebug;
+		StartProfiling;
 		if (!_valid) {
 			logcritical("called CheckInput after invalidation");
 			return false;
@@ -434,13 +439,13 @@ namespace CommonLib
 		ret = true;
 	logdebug("CheckInput : {}, succ {}, err {}", ret, bSuccess, GetLastError());*/
 #endif
-		profileDebug(TimeProfilingDebug, "");
+		PROF_3(TimeProfiling, "");
 		return ret;
 	}
 
 	std::string Execution::ReceiveOutput()
 	{
-		StartProfilingDebug;
+		StartProfiling;
 		if (!_valid) {
 			logcritical("called ReadOutput after invalidation");
 			return "";
@@ -497,8 +502,7 @@ namespace CommonLib
 			}
 		}
 #endif
-		logdebug("7");
-		profileDebug(TimeProfilingDebug, "");
+		PROF_3(TimeProfiling, "");
 		return ret;
 	}
 
@@ -521,7 +525,7 @@ namespace CommonLib
 			logcritical("called KillProcess after invalidation");
 			return false;
 		}
-		logdebug("Execution {}: Killed Execution", _identifier);
+		loginfo("Execution {}: Killed Execution", _identifier);
 		_endtime = std::chrono::steady_clock::now();
 #if defined(unix) || defined(__unix__) || defined(__unix)
 		return Processes::KillProcess(processid);
@@ -632,26 +636,26 @@ namespace CommonLib
 
 	size_t Execution::GetDataSize()
 	{
-		static size_t size0x1 = ISerializable::GetDataSize() 
-								+ 4  // version
-		                        + 1   // _running
-		                        + 8   // _starttime
-		                        + 8   // _endtime
-		                        + 8   // _lasttime
-		                        + 8   // _identifier
-		                        + 8   // _exitreason
-		                        + 1   // valid
-		                        + 1   // has _callback
-		                        + 1;  // _skipOracle
+		static size_t size0x1 = ISerializable::GetDataSize() + 4  // version
+		                        + 1                               // _running
+		                        + 8                               // _starttime
+		                        + 8                               // _endtime
+		                        + 8                               // _lasttime
+		                        + 1                               // storeoutput
+		                        + 8                               // _identifier
+		                        + 8                               // _exitreason
+		                        + 1                               // valid
+		                        + 1                               // has _callback
+		                        + 1                               // _skipOracle
+		                        + 8                               // formid input
+			;
 
 
 		auto size = size0x1;
 
-		size += Buffer::_sizeof(_lastwritten);
 		size += Buffer::ArrayBuffer::GetContainerSize(_reactiontime);
 		size += Buffer::_sizeof(_cmdArgs);
 		size += Buffer::_sizeof(_scriptArgs);
-		size += Buffer::_sizeof(_input);
 		if (_storeoutput) {
 			size += Buffer::_sizeof(_output);
 		} else {
@@ -668,19 +672,19 @@ namespace CommonLib
 	{
 		SAVE_WRITE_EXPR(ISerializable::WriteData(buffer));
 
-		SAVE_WRITE(buffer, uint32_t, classversion)
+		SAVE_WRITE(buffer, uint32_t, version)
 		SAVE_WRITE(buffer, bool, _running);
 		SAVE_WRITE(buffer, std::chrono::steady_clock::time_point, _starttime);
 		SAVE_WRITE(buffer, std::chrono::steady_clock::time_point, _endtime);
+		SAVE_WRITE(buffer, std::chrono::steady_clock::time_point, _lasttime);
 
 		SAVE_WRITE_LIST(buffer, uint64_t, _reactiontime);
-		SAVE_WRITE(buffer, String, _cmdArgs);
-		SAVE_WRITE(buffer, String, _scriptArgs);
-		SAVE_WRITE(buffer, String, _input);
+		SAVE_WRITE(buffer, std::string, _cmdArgs);
+		SAVE_WRITE(buffer, std::string, _scriptArgs);
+		SAVE_WRITE(buffer, bool, _storeoutput);
 		if (_storeoutput) {
-			SAVE_WRITE(buffer, String, _output);
-		}
-		else {
+			SAVE_WRITE(buffer, std::string, _output);
+		} else {
 			SAVE_WRITE(buffer, std::string, std::string(""));
 		}
 
@@ -694,37 +698,12 @@ namespace CommonLib
 			SAVE_WRITE_BUFFER(buffer, buf, sz);
 		}
 		SAVE_WRITE(buffer, bool, _skipOracle);
-		/*
-		try {
-			CHECK(abuf.Write(_running));
-			CHECK(abuf.Write(_starttime));
-			CHECK(abuf.Write(_endtime));
-			CHECK(abuf.Write(_lastwritten));
-			CHECK(abuf.Write(_lasttime));
-			CHECK(abuf.WriteList(_reactiontime));
-			if (_storeoutput) {
-				CHECK(abuf.Write(_output));
-			} else {
-				CHECK(abuf.Write<std::string>(""));
-			}
-			CHECK(abuf.Write(_cmdArgs));
-			CHECK(abuf.Write(_identifier));
-			CHECK(abuf.Write(_exitreason));
-			CHECK(abuf.Write(_valid));
-			CHECK(abuf.Write(_callback.operator bool()));
-			if (_callback) {
-				size_t sz = 0;
-				auto buf = _callback->GetData(sz);
-				CHECK(abuf.Write(buf, sz));
-				delete buf;
-			}
-			CHECK(abuf.Write(_skipOracle));
-		} catch (std::exception&) {
-			auto [data, sz] = abuf.GetBuffer();
-			buffer->write((char*)data, sz);
-			offset += sz;
-			return false;
-		}*/
+
+		if (_input) {
+			SAVE_WRITE(buffer, FormID, _input->GetFormID());
+		} else {
+			SAVE_WRITE(buffer, FormID, 0);
+		}
 
 		__hash = Hashing::hash(this);
 		return true;
@@ -738,30 +717,30 @@ namespace CommonLib
 			delete _loadData;
 		_loadData = new LoadData();
 
-		int32_t version = buffer.Read<uint32_t>();
-		switch (version) {
+		int32_t vers = buffer.Read<uint32_t>();
+		switch (vers) {
 		case 0x1:
 			{
 				try {
 					_running = buffer.Read<bool>();
 					_starttime = buffer.Read<std::chrono::steady_clock::time_point>();
 					_endtime = buffer.Read<std::chrono::steady_clock::time_point>();
-					_loadData->formid = buffer.Read<FormID>();
-					//_lastwritten = buffer.Read<std::string>();
-					//_lasttime = buffer.Read<std::chrono::steady_clock::time_point>();
+					_lasttime = buffer.Read<std::chrono::steady_clock::time_point>();
+
 					_reactiontime = buffer.ReadList<uint64_t>();
+					_cmdArgs = buffer.Read<std::string>();
+					_scriptArgs = buffer.Read<std::string>();
+					_storeoutput = buffer.Read<bool>();
 					_output = buffer.Read<std::string>();
-					if (_output.empty() == false)
-						_storeoutput = true;
-					_identifier = buffer.Read<FormID>();
-					_exitreason = buffer.Read<FormID>();
+					_identifier = buffer.Read<uint64_t>();
+					_exitreason = buffer.Read<uint64_t>();
 					_valid = buffer.Read<bool>();
 					bool hascall = buffer.Read<bool>();
 					if (hascall) {
 						int64_t len = 0;
 						unsigned char* buf = buffer.Read(&len);
-						size_t off = 0;
-						_callback = Functions::BaseFunction::Create(buf, off, len, resolver);
+						Buffer::ArrayBuffer abuf(buf, 0, len);
+						_callback = Functions::BaseFunction::Create(abuf, resolver);
 					}
 					_skipOracle = buffer.Read<bool>();
 					_cmdArgs = "";
@@ -787,32 +766,35 @@ namespace CommonLib
 		//_executed = 0;
 		//_lastwritten = "";
 		_reactiontime.clear();
-		_cmdArgs.reset();
-		_scriptArgs.reset();
-		_output.reset();
+		_cmdArgs.clear();
+		_cmdArgs.shrink_to_fit();
+		_scriptArgs.clear();
+		_scriptArgs.shrink_to_fit();
+		_output.clear();
+		_output.shrink_to_fit();
 		_exitreason = ExitReason::Running;
 		_skipOracle = false;
 		//_skipExclusionCheck = false;
 		_valid = true;
 		_pipeinit = false;
 		_input.reset();
-		//if (_valid)
-		//	InValidate();
+		if (_valid)
+			InValidate();
 		_callback.reset();
 	}
 
 	void Execution::FreeMemory()
 	{
 		if (TryLock()) {
-			if (HasFlag(Form::FormFlags::DoNotFree) == false) {
-				if (_storeoutput == false)
-					_output.reset();
-				_scriptArgs.reset();
-				_cmdArgs.reset();
-				_lastwritten = "";
-				_lastwritten.shrink_to_fit();
+			if (HasFlag(ISerializable::SerializableFlags::DoNotFree) == false) {
+				_output.clear();
+				_output.shrink_to_fit();
+				_scriptArgs.clear();
+				_scriptArgs.shrink_to_fit();
+				_cmdArgs.clear();
+				_cmdArgs.shrink_to_fit();
 			}
-			Form::Unlock();
+			Unlock();
 		}
 	}
 
@@ -837,10 +819,6 @@ namespace CommonLib
 		other->_output = _output;
 		other->_cmdArgs = _cmdArgs;
 		other->_reactiontime = _reactiontime;
-		other->_lasttime = _lasttime;
-		other->_lastwritten = _lastwritten;
-		other->_itrend = _itrend;
-		other->_itr = _itr;
 		other->_endtime = _endtime;
 		other->_starttime = _starttime;
 		other->_running = _running;
@@ -848,7 +826,14 @@ namespace CommonLib
 
 	bool Execution::HasChanged()
 	{
-		return Form::HasChanged() || __hash != Hashing::hash(this);
+		return ISerializable::HasChanged() || __hash != Hashing::hash(this);
+	}
+
+	void Execution::RegisterFactories()
+	{
+		if (!_registeredFactories) {
+			_registeredFactories = !_registeredFactories;
+		}
 	}
 }
 
@@ -863,12 +848,11 @@ namespace Hashing
 		hs = std::hash<bool>{}(exec->_running);
 		hs = hs ^ (std::hash<uint64_t>{}(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point_cast<std::chrono::nanoseconds>(exec->_starttime).time_since_epoch()).count()) << 1);
 		hs = hs ^ (std::hash<uint64_t>{}(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point_cast<std::chrono::nanoseconds>(exec->_endtime).time_since_epoch()).count()) << 1);
-		if (auto ptr = exec->_input.lock(); ptr)
-			hs = hs ^ (std::hash<FormID>{}(ptr->GetFormID()) << 1);
+		if (auto ptr = exec->_input; ptr)
+			hs = hs ^ (std::hash<CommonLib::FormID>{}(ptr->GetFormID()) << 1);
 		else
-			hs = hs ^ (std::hash<FormID>{}(0) << 1);
+			hs = hs ^ (std::hash<CommonLib::FormID>{}(0) << 1);
 
-		hs = hs ^ (std::hash<std::string>{}(exec->_lastwritten) << 1);
 		hs = hs ^ (std::hash<uint64_t>{}(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point_cast<std::chrono::nanoseconds>(exec->_lasttime).time_since_epoch()).count()) << 1);
 		hs = hs ^ (Hashing::hash(exec->_reactiontime) << 1);
 		hs = hs ^ (std::hash<std::string>{}(exec->_output) << 1);
@@ -878,12 +862,5 @@ namespace Hashing
 		hs = hs ^ (std::hash<bool>{}(exec->_skipOracle) << 1);
 		hs = hs ^ (std::hash<bool>{}(exec->_valid) << 1);
 		return hs;
-	}
-}
-
-void Execution::RegisterFactories()
-{
-	if (!_registeredFactories) {
-		_registeredFactories = !_registeredFactories;
 	}
 }

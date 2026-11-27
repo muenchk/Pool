@@ -12,7 +12,7 @@ namespace CommonLib
 		_formid = formid;
 	}
 
-	size_t ISerializable::GetDataSize(int32_t version)
+	size_t ISerializable::GetDataSize()
 	{
 		size_t size_1 = 4     // version
 		                + 8   // _formid

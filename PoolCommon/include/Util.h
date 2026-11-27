@@ -223,7 +223,6 @@ namespace util
 
 		virtual void Destroy() override
 		{
-			SKSE::log::info("Destroy {}", (uintptr_t)_ref);
 			assert(_ref_count == 0);
 			assert(!_destroyed);
 			_destroyed = true;

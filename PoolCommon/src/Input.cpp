@@ -2,6 +2,65 @@
 
 namespace CommonLib
 {
+	size_t InputSingle::GetDataSize()
+	{
+		size_t sz = ISerializable::GetDataSize()  // form stuff
+		            + 4                           // version
+		            + 1                           // _returnedInput
+			;
+		sz += Buffer::_sizeof(_input);
+
+		return sz;
+	}
+	bool InputSingle::WriteData(Buffer::ArrayBuffer& buffer)
+	{
+		ISerializable::WriteData(buffer);
+
+		SAVE_WRITE(buffer, uint32_t, version);
+		SAVE_WRITE(buffer, bool, _returnedInput);
+		SAVE_WRITE(buffer, std::string, _input);
+	}
+	bool InputSingle::ReadData(Buffer::ArrayBuffer& buffer, LoadResolver* resolver)
+	{
+		ISerializable::ReadData(buffer, resolver);
+
+		uint32_t vers = buffer.Read<uint32_t>();
+		switch (vers) {
+		case 0x1:
+			_returnedInput = buffer.Read<bool>();
+			_input = buffer.Read<std::string>();
+
+			return true;
+		default:
+			logwarn("unknown version for class InputSingle");
+			return false;
+		}
+	}
+	void InputSingle::InitializeEarly(LoadResolver* resolver)
+	{
+
+	}
+	void InputSingle::InitializeLate(LoadResolver* resolver)
+	{
+
+	}
+	void InputSingle::Delete()
+	{
+		Clear();
+	}
+	bool InputSingle::CanDelete()
+	{
+		return true;
+	}
+	void InputSingle::Clear()
+	{
+		_input = "";
+		_returnedInput = false;
+	}
+	int32_t InputSingle::GetType()
+	{
+		return FormType::InputSingle;
+	}
 
 	std::string InputSingle::GetNextInput()
 	{
@@ -60,6 +119,78 @@ namespace CommonLib
 		_returnedInput = false;
 	}
 
+
+	
+	size_t InputMulti::GetDataSize()
+	{
+		size_t sz = ISerializable::GetDataSize()  // form stuff
+		            + 4                           // version
+		            + 8                           // _index
+			+ 8 // size of _list
+			;
+		for (auto& entry : _list)
+			sz += Buffer::_sizeof(entry);
+
+		return sz;
+	}
+	bool InputMulti::WriteData(Buffer::ArrayBuffer& buffer)
+	{
+		ISerializable::WriteData(buffer);
+
+		SAVE_WRITE(buffer, uint32_t, version);
+		SAVE_WRITE(buffer, size_t, _index);
+		SAVE_WRITE(buffer, size_t, _list.size());
+		for (size_t i = 0; i < _list.size(); i++)
+			SAVE_WRITE(buffer, std::string, _list[i]);
+
+		return true;
+	}
+	bool InputMulti::ReadData(Buffer::ArrayBuffer& buffer, LoadResolver* resolver)
+	{
+		ISerializable::ReadData(buffer, resolver);
+
+		uint32_t vers = buffer.Read<uint32_t>();
+		switch (vers) {
+		case 0x1:
+			{
+				_index = buffer.Read<size_t>();
+				size_t sz = buffer.Read<size_t>();
+				for (size_t i = 0; i < sz; i++) {
+					_list.push_back(buffer.Read<std::string>());
+				}
+				return true;
+			}
+			break;
+		default:
+			logwarn("unknown version for class InputSingle");
+			return false;
+		}
+	}
+	void InputMulti::InitializeEarly(LoadResolver* resolver)
+	{
+	}
+	void InputMulti::InitializeLate(LoadResolver* resolver)
+	{
+	}
+	void InputMulti::Delete()
+	{
+		Clear();
+	}
+	bool InputMulti::CanDelete()
+	{
+		return true;
+	}
+	void InputMulti::Clear()
+	{
+		_index = 0;
+		_list.clear();
+		_list.shrink_to_fit();
+	}
+	int32_t InputMulti::GetType()
+	{
+		return FormType::InputSingle;
+	}
+
 	std::string InputMulti::GetNextInput()
 	{
 		if (_index < _list.size()) {
@@ -81,7 +212,7 @@ namespace CommonLib
 		else
 			return "";
 	}
-	std::string vGetLastWrittenInput()
+	std::string InputMulti::GetLastWrittenInput()
 	{
 		if (_index < _list.size() && _index != 0)
 			return _list[_index - 1];

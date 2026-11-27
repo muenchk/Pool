@@ -13,7 +13,7 @@
 #include <utility>
 #include <vector>
 
-namespace PoolCommon
+namespace CommonLib
 {
 	/// <summary>
 	/// Provides generic functions

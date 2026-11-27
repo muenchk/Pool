@@ -6,6 +6,7 @@
 #include "Logging.h"
 
 #include <iostream>
+#include <fstream>
 
 std::string Logging::TimePassed()
 {

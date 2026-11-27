@@ -361,7 +361,7 @@ namespace CommonLib
 		return true;
 	}
 
-	size_t FlagsUnique::Hash()
+	size_t FlagsBool::Hash()
 	{
 		auto itr = _flags.begin();
 		std::size_t hs = 0;
@@ -374,6 +374,5 @@ namespace CommonLib
 			itr++;
 		}
 		return hs;
-	}
 	}
 }

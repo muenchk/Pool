@@ -262,7 +262,7 @@ namespace CommonLib
 
 	public:
 		ExecutionHandler();
-		~ExecutionHandler();
+		virtual ~ExecutionHandler();
 
 		void Init(std::shared_ptr<TaskController> threadpool, int32_t maxConcurrentExecutions);
 

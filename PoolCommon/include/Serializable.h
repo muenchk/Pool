@@ -18,6 +18,9 @@
 
 namespace CommonLib
 {
+	class LoadResolver;
+	class ISerializable;
+
 	typedef uint64_t FormID;
 
 	template <class T, typename = std::enable_if<std::is_base_of<ISerializable, T>::value>>
@@ -77,7 +80,7 @@ namespace CommonLib
 		/// returns the total size of the fields with static size
 		/// </summary>
 		/// <returns></returns>
-		virtual size_t GetDataSize(int32_t version);
+		virtual size_t GetDataSize();
 		/// <summary>
 		/// saves all relevant information of this instance to the given buffer
 		/// </summary>
@@ -226,7 +229,7 @@ namespace CommonLib
 		}
 
 
-	#pragma region Ref Counting
+#pragma region Ref Counting
 	public:
 		void add_ref() const noexcept
 		{
@@ -257,106 +260,13 @@ namespace CommonLib
 	};
 
 	
-	template <class T, typename = std::enable_if<std::is_base_of<ISerializable, T>::value>>
-	class FlagHolder
-	{
-		EnumType _flag;
-		std::shared_ptr<T> _serializable;
-
-		FlagHolder(FlagHolder<T>&) = delete;
-		FlagHolder(FlagHolder<T>&&) = delete;
-		FlagHolder<T>& operator=(const FlagHolder<T>&) = delete;
-		FlagHolder<T>& operator=(const FlagHolder<T>&&) = delete;
-
-	public:
-		FlagHolder()
-		{
-		}
-
-		FlagHolder(std::shared_ptr<T> serializable, EnumType flag)
-		{
-			if (serializable) {
-				_serializable = serializable;
-				_flag = flag;
-				_serializable->SetFlag(flag);
-			}
-		}
-
-		~FlagHolder()
-		{
-			if (_serializable) {
-				_serializable->UnsetFlag(_flag);
-				_serializable.reset();
-			}
-		}
-	};
-
-	template <class T, typename = std::enable_if<std::is_base_of<ISerializable, T>::value>>
-	class ReadLockHolder
-	{
-		std::shared_ptr<T> _serializable;
-
-		ReadLockHolder(ReadLockHolder<T>&) = delete;
-		ReadLockHolder(ReadLockHolder<T>&&) = delete;
-		ReadLockHolder<T>& operator=(const ReadLockHolder<T>&) = delete;
-		ReadLockHolder<T>& operator=(const ReadLockHolder<T>&&) = delete;
-
-	public:
-		ReadLockHolder()
-		{
-		}
-
-		ReadLockHolder(std::shared_ptr<T> serializable)
-		{
-			if (serializable) {
-				_serializable = serializable;
-				_serializable->LockRead();
-			}
-		}
-
-		~ReadLockHolder()
-		{
-			if (_serializable) {
-				_serializable->UnlockRead();
-				_serializable.reset();
-			}
-		}
-	};
-
-	template <class T, typename = std::enable_if<std::is_base_of<ISerializable, T>::value>>
-	class LockHolder
-	{
-		std::shared_ptr<T> _serializable;
-
-		LockHolder(LockHolder<T>&) = delete;
-		LockHolder(LockHolder<T>&&) = delete;
-		LockHolder<T>& operator=(const LockHolder<T>&) = delete;
-		LockHolder<T>& operator=(const LockHolder<T>&&) = delete;
-
-	public:
-		LockHolder()
-		{
-		}
-
-		LockHolder(std::shared_ptr<T> serializable)
-		{
-			if (serializable) {
-				_serializable = serializable;
-				_serializable->Lock();
-			}
-		}
-
-		~LockHolder()
-		{
-			if (_serializable) {
-				_serializable->Unlock();
-				_serializable.reset();
-			}
-		}
-	};
+	template <class... Ts>
+	using enable_if_serializable_t = std::enable_if_t<(std::is_base_of<ISerializable, Ts>::value && ...), int>;
 
 	
-	template <class T, typename = std::enable_if<std::is_base_of<ISerializable, T>::value>>
+
+	
+	template <class T>
 	class Ref
 	{
 	public:
@@ -429,42 +339,42 @@ namespace CommonLib
 		T* ptr_ = nullptr;
 	};
 
-	template <typename T>
+	template <class T, enable_if_serializable_t<T> = 0>
 	void swap(Ref<T>& a, Ref<T>& b) noexcept
 	{
 		a.swap(b);
 	}
 
 	// ---------------- casts (shared_ptr equivalents) ----------------
-	template <typename T, typename U>
+	template <typename T, typename U, enable_if_serializable_t<T, U> = 0>
 	Ref<T> static_pointer_cast(const Ref<U>& r) noexcept
 	{
 		return Ref<T>(static_cast<T*>(r.get()));
 	}
-	template <typename T, typename U>
+	template <typename T, typename U, enable_if_serializable_t<T, U> = 0>
 	Ref<T> static_pointer_cast(Ref<U>&& r) noexcept
 	{
 		return Ref<T>::adopt(static_cast<T*>(r.detach()));
 	}
 
-	template <typename T, typename U>
+	template <typename T, typename U, enable_if_serializable_t<T, U> = 0>
 	Ref<T> const_pointer_cast(const Ref<U>& r) noexcept
 	{
 		return Ref<T>(const_cast<T*>(r.get()));
 	}
-	template <typename T, typename U>
+	template <typename T, typename U, enable_if_serializable_t<T, U> = 0>
 	Ref<T> const_pointer_cast(Ref<U>&& r) noexcept
 	{
 		return Ref<T>::adopt(const_cast<T*>(r.detach()));
 	}
 
 	// Returns an empty Ref on failure; the source keeps its reference (like shared_ptr)
-	template <typename T, typename U>
+	template <typename T, typename U, enable_if_serializable_t<T, U> = 0>
 	Ref<T> dynamic_pointer_cast(const Ref<U>& r) noexcept
 	{
 		return Ref<T>(dynamic_cast<T*>(r.get()));
 	}
-	template <typename T, typename U>
+	template <typename T, typename U, enable_if_serializable_t<T, U> = 0>
 	Ref<T> dynamic_pointer_cast(Ref<U>&& r) noexcept
 	{
 		if (T* p = dynamic_cast<T*>(r.get())) {
@@ -476,46 +386,144 @@ namespace CommonLib
 
 	// ---------------- comparisons: forward to the raw pointers ----------------
 	// Ref <-> Ref (any pair whose pointers are comparable, e.g. Base/Derived)
-	template <typename T, typename U>
+	template <typename T, typename U, enable_if_serializable_t<T, U> = 0>
 	bool operator==(const Ref<T>& a, const Ref<U>& b) noexcept
 	{
 		return a.get() == b.get();
 	}
-	template <typename T, typename U>
+	template <typename T, typename U, enable_if_serializable_t<T, U> = 0>
 	auto operator<=>(const Ref<T>& a, const Ref<U>& b) noexcept
 	{
 		return std::compare_three_way{}(a.get(), b.get());
 	}
 
 	// Ref <-> raw pointer (reversed order is synthesized by C++20)
-	template <typename T, typename U>
+	template <typename T, typename U, enable_if_serializable_t<T, U> = 0>
 	bool operator==(const Ref<T>& a, U* b) noexcept
 	{
 		return a.get() == b;
 	}
-	template <typename T, typename U>
+	template <typename T, typename U, enable_if_serializable_t<T, U> = 0>
 	auto operator<=>(const Ref<T>& a, U* b) noexcept
 	{
 		return std::compare_three_way{}(a.get(), b);
 	}
 
 	// Ref <-> nullptr
-	template <typename T>
+	template <typename T, enable_if_serializable_t<T> = 0>
 	bool operator==(const Ref<T>& a, std::nullptr_t) noexcept
 	{
 		return a.get() == nullptr;
 	}
-	template <typename T>
+	template <typename T, enable_if_serializable_t<T> = 0>
 	std::strong_ordering operator<=>(const Ref<T>& a, std::nullptr_t) noexcept
 	{
 		return std::compare_three_way{}(a.get(), static_cast<T*>(nullptr));
 	}
 
 	// ---------------- hashing ----------------
-	template <typename T>
-	struct std::hash<Ref<T>>
+	template <class T>
+	struct std::hash<CommonLib::Ref<T>>
 	{
-		std::size_t operator()(const Ref<T>& r) const noexcept { return std::hash<T*>()(r.get()); }
+		std::size_t operator()(const CommonLib::Ref<T>& r) const noexcept { return std::hash<T*>()(r.get()); }
+	};
+
+	template <class T, enable_if_serializable_t<T> = 0>
+	class FlagHolder
+	{
+		EnumType _flag;
+		Ref<T> _serializable;
+
+		FlagHolder(FlagHolder<T>&) = delete;
+		FlagHolder(FlagHolder<T>&&) = delete;
+		FlagHolder<T>& operator=(const FlagHolder<T>&) = delete;
+		FlagHolder<T>& operator=(const FlagHolder<T>&&) = delete;
+
+	public:
+		FlagHolder()
+		{
+		}
+
+		FlagHolder(Ref<T> serializable, EnumType flag)
+		{
+			if (serializable) {
+				_serializable = serializable;
+				_flag = flag;
+				_serializable->SetFlag(flag);
+			}
+		}
+
+		~FlagHolder()
+		{
+			if (_serializable) {
+				_serializable->UnsetFlag(_flag);
+				_serializable.reset();
+			}
+		}
+	};
+
+	template <class T, enable_if_serializable_t<T> = 0>
+	class ReadLockHolder
+	{
+		Ref<T> _serializable;
+
+		ReadLockHolder(ReadLockHolder<T>&) = delete;
+		ReadLockHolder(ReadLockHolder<T>&&) = delete;
+		ReadLockHolder<T>& operator=(const ReadLockHolder<T>&) = delete;
+		ReadLockHolder<T>& operator=(const ReadLockHolder<T>&&) = delete;
+
+	public:
+		ReadLockHolder()
+		{
+		}
+
+		ReadLockHolder(Ref<T> serializable)
+		{
+			if (serializable) {
+				_serializable = serializable;
+				_serializable->LockRead();
+			}
+		}
+
+		~ReadLockHolder()
+		{
+			if (_serializable) {
+				_serializable->UnlockRead();
+				_serializable.reset();
+			}
+		}
+	};
+
+	template <class T, enable_if_serializable_t<T> = 0>
+	class LockHolder
+	{
+		Ref<T> _serializable;
+
+		LockHolder(LockHolder<T>&) = delete;
+		LockHolder(LockHolder<T>&&) = delete;
+		LockHolder<T>& operator=(const LockHolder<T>&) = delete;
+		LockHolder<T>& operator=(const LockHolder<T>&&) = delete;
+
+	public:
+		LockHolder()
+		{
+		}
+
+		LockHolder(Ref<T> serializable)
+		{
+			if (serializable) {
+				_serializable = serializable;
+				_serializable->Lock();
+			}
+		}
+
+		~LockHolder()
+		{
+			if (_serializable) {
+				_serializable->Unlock();
+				_serializable.reset();
+			}
+		}
 	};
 
 	struct FormType
@@ -524,7 +532,9 @@ namespace CommonLib
 		{
 			ExecutionHandler = 'EXEH',
 			Execution = 'EXEC',
-			TaskHandler = 'TASH',
+			TaskController = 'TASC',
+			InputSingle = 'INPS',
+			InputMulti = 'INPM',
 		};
 	};
 }

@@ -7,7 +7,7 @@
 
 #include "Function.h"
 #include "Serializable.h"
-
+#include "Input.h"
 
 namespace CommonLib
 {
@@ -25,13 +25,14 @@ namespace CommonLib
 
 	class ExecInput
 	{
-
 	};
 
 	class Execution : public ISerializable
 	{
 	private:
 		void Init();
+
+		const uint32_t version = 0x1;
 
 	public:
 		struct ExitReason
@@ -83,7 +84,7 @@ namespace CommonLib
 
 		Execution(std::shared_ptr<Functions::BaseFunction> a_callback, uint64_t id);
 		Execution() {}
-		~Execution();
+		virtual ~Execution();
 
 		void Init(std::shared_ptr<Functions::BaseFunction> a_callback, uint64_t id);
 
@@ -110,7 +111,11 @@ namespace CommonLib
 		/// </summary>
 		std::chrono::steady_clock::time_point _timeouttime;
 
-		
+		/// <summary>
+		/// time the last fragment was written to the application
+		/// </summary>
+		std::chrono::steady_clock::time_point _lasttime;
+
 		/// <summary>
 		/// reaction time for each fragment [on whole test this contains only one element]
 		/// </summary>
@@ -122,18 +127,18 @@ namespace CommonLib
 		/// <summary>
 		/// command line args for the test
 		/// </summary>
-		String _cmdArgs;
+		std::string _cmdArgs;
 		/// <summary>
 		/// stdin arguments for scripts
 		/// </summary>
-		String _scriptArgs;
+		std::string _scriptArgs;
 
 		Ref<IInput> _input;
 
 		/// <summary>
 		/// output of the PUT
 		/// </summary>
-		String _output;
+		std::string _output;
 		/// <summary>
 		/// whether to store the put output
 		/// </summary>
@@ -244,12 +249,15 @@ namespace CommonLib
 
 		bool PipeError() { return _pipeError; }
 
-		void DeepCopy(std::shared_ptr<Execution> other);
+		void DeepCopy(Ref<Execution> other);
 
-		const uint32_t classversion = 0x1;
+	private:
+		struct LoadData
+		{
+			FormID inputID = 0;
+		};
+		LoadData* _loadData;
 
-		
-private:
 		inline static bool _registeredFactories = false;
 		bool _valid = true;
 		bool _pipeinit = false;

@@ -19,7 +19,7 @@ namespace CommonLib
 
 		void RegisterFactory(uint64_t classid, std::function<std::shared_ptr<BaseFunction>()> factory)
 		{
-			loginfo("Registered callback factory: {}", Utility::GetHex(classid))
+			loginfo("Registered callback factory: {}", UtilityBase::GetHex(classid))
 				classregistry.insert({ classid, factory });
 		}
 
@@ -34,19 +34,11 @@ namespace CommonLib
 			else
 				return nullptr;
 		}
-		std::shared_ptr<BaseFunction> BaseFunction::Create(std::istream* buffer, size_t& offset, size_t length, LoadResolver* resolver)
+		std::shared_ptr<BaseFunction> BaseFunction::Create(Buffer::ArrayBuffer& buffer, LoadResolver* resolver)
 		{
-			uint64_t type = Buffer::ReadUInt64(buffer, offset);
+			uint64_t type = buffer.Read<uint64_t>();
 			auto ptr = FunctionFactory(type);
-			ptr->ReadData(buffer, offset, length, resolver);
-			return ptr;
-		}
-
-		std::shared_ptr<BaseFunction> BaseFunction::Create(unsigned char* buffer, size_t& offset, size_t length, LoadResolver* resolver)
-		{
-			uint64_t type = Buffer::ReadUInt64(buffer, offset);
-			auto ptr = FunctionFactory(type);
-			ptr->ReadData(buffer, offset, length, resolver);
+			ptr->ReadData(buffer, resolver);
 			return ptr;
 		}
 
@@ -55,9 +47,9 @@ namespace CommonLib
 			return 8;  // type
 		}
 
-		bool BaseFunction::WriteData(std::ostream* buffer, size_t& offset)
+		bool BaseFunction::WriteData(Buffer::ArrayBuffer& buffer)
 		{
-			Buffer::Write(GetType(), buffer, offset);
+			SAVE_WRITE(buffer, uint64_t, GetType());
 			return true;
 		}
 		unsigned char* BaseFunction::GetData(size_t& size)

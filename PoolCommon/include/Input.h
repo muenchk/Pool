@@ -6,12 +6,12 @@
 
 namespace CommonLib
 {
-	class IInput
+	class IInput : public ISerializable
 	{
 	private:
 		static const uint32_t version = 0x1;
 	public:
-		struct InputFlags : public ISerializable
+		struct InputFlags
 		{
 			enum InputFlag : EnumType
 			{
@@ -74,17 +74,32 @@ namespace CommonLib
 		/// <returns></returns>
 		virtual Ref<IInput> Clone() = 0;
 
+		virtual ~IInput() {}
+
 	protected:
 
 	};
 
 	class InputSingle : public IInput
 	{
+	private:
+		static const uint32_t version = 0x1;
 	protected:
 		std::string _input = "";
 		bool _returnedInput = false;
 
 	public:
+		virtual size_t GetDataSize();
+		virtual bool WriteData(Buffer::ArrayBuffer& buffer);
+		virtual bool ReadData(Buffer::ArrayBuffer& buffer, LoadResolver* resolver);
+		virtual void InitializeEarly(LoadResolver* resolver);
+		virtual void InitializeLate(LoadResolver* resolver);
+		virtual void Delete();
+		virtual bool CanDelete();
+		virtual void Clear();
+		virtual int32_t GetType();
+
+
 		virtual std::string GetNextInput();
 		virtual bool HasInputWithIndex(size_t index);
 		virtual std::string GetInputWithIndex(size_t index);
@@ -99,14 +114,29 @@ namespace CommonLib
 		/// </summary>
 		/// <param name="input"></param>
 		virtual void SetInput(std::string input);
+
+		virtual ~InputSingle() {}
 	};
 
 	class InputMulti : public IInput
 	{
+	private:
+		static const uint32_t version = 0x1;
 	protected:
 		size_t _index = 0;
 		std::deque<std::string> _list = {};
+
 	public:
+		virtual size_t GetDataSize();
+		virtual bool WriteData(Buffer::ArrayBuffer& buffer);
+		virtual bool ReadData(Buffer::ArrayBuffer& buffer, LoadResolver* resolver);
+		virtual void InitializeEarly(LoadResolver* resolver);
+		virtual void InitializeLate(LoadResolver* resolver);
+		virtual void Delete();
+		virtual bool CanDelete();
+		virtual void Clear();
+		virtual int32_t GetType();
+
 		virtual std::string GetNextInput();
 		virtual bool HasInputWithIndex(size_t index);
 		virtual std::string GetInputWithIndex(size_t index);
@@ -136,5 +166,7 @@ namespace CommonLib
 		/// Removes the last input in the list
 		/// </summary>
 		virtual void RemoveLastInput();
+
+		virtual ~InputMulti() {}
 	};
 }

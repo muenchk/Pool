@@ -7,9 +7,10 @@
 #include "Logging.h"
 
 #include <set>
+#include <random>
 
 
-namespace PoolCommon
+namespace CommonLib
 {
 	//-------------------Random-------------------------
 

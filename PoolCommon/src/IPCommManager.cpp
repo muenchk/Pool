@@ -69,7 +69,7 @@ namespace CommonLib
 				itr = _writeQueue.erase(itr);
 				continue;
 			}
-			if (itr->second && (!itr->second->_test.lock() || itr->second->_test.lock() && (itr->second->_test.lock()->IsValid() == false || itr->second->_test.lock()->IsRunning() == false))) {
+			if (itr->second && (!itr->second->_exec.lock() || itr->second->_exec.lock() && (itr->second->_exec.lock()->IsValid() == false || itr->second->_exec.lock()->IsRunning() == false))) {
 				// weak pointer expired
 				// delete write queue
 				WriteData *tmp = itr->second, *tmp2 = itr->second->next;
@@ -86,11 +86,11 @@ namespace CommonLib
 			// now write some stuff
 
 			bool skipitrinc = false;
-			if (auto test = itr->second->_test.lock(); test) {
+			if (auto exec = itr->second->_exec.lock(); exec) {
 				auto write = itr->second;
 				long written = 1;
 				while (written != 0 && write != nullptr) {
-					written = test->Write(write->_data, write->_offset, write->_length);
+					written = exec->Send(write->_data, write->_offset, write->_length);
 					// update write information
 					write->_offset += written;
 					write->_length -= written;
@@ -106,7 +106,7 @@ namespace CommonLib
 					} else if (write->_length <= 0) {
 						auto next = write->next;
 						if (next != nullptr) {
-							_writeQueue.insert_or_assign(test->GetFormID(), next);
+							_writeQueue.insert_or_assign(exec->GetFormID(), next);
 							delete write;
 							write = next;
 						} else {
