@@ -6,26 +6,29 @@
 #pragma once
 
 #include "Function.h"
+#include "Serializable.h"
 
 
-namespace PoolCommon
+namespace CommonLib
 {
 	class Execution;
 }
 
 namespace Hashing
 {
-	size_t hash(PoolCommon::Execution* node);
+	size_t hash(CommonLib::Execution* node);
 }
 
-namespace PoolCommon
+namespace CommonLib
 {
+	class IInput;
+
 	class ExecInput
 	{
 
 	};
 
-	class Execution
+	class Execution : public ISerializable
 	{
 	private:
 		void Init();
@@ -124,6 +127,8 @@ namespace PoolCommon
 		/// stdin arguments for scripts
 		/// </summary>
 		String _scriptArgs;
+
+		Ref<IInput> _input;
 
 		/// <summary>
 		/// output of the PUT
@@ -241,7 +246,7 @@ namespace PoolCommon
 
 		void DeepCopy(std::shared_ptr<Execution> other);
 
-		const int32_t classversion = 0x1;
+		const uint32_t classversion = 0x1;
 
 		
 private:
@@ -254,29 +259,24 @@ private:
 		size_t __hash = 0;
 		friend size_t Hashing::hash(Execution* node);
 
-		size_t GetStaticSize(int32_t version);
-		size_t GetDynamicSize();
-		virtual bool WriteData(std::ostream* buffer, size_t& offset, size_t length);
-		virtual bool ReadData(std::istream* buffer, size_t& offset, size_t length, LoadResolver* resolver);
-		int32_t GetType() override
+		size_t GetDataSize();
+		virtual bool WriteData(Buffer::ArrayBuffer& buffer) override;
+		virtual bool ReadData(Buffer::ArrayBuffer&, LoadResolver* resolver) override;
+		virtual int32_t GetType()
 		{
-			return FormType::Test;
-		}
-		static int32_t GetTypeStatic()
-		{
-			return FormType::Test;
+			return FormType::Execution;
 		}
 		void Delete() override;
 		void Clear() override;
 		static void RegisterFactories();
 
-		void FreeMemory() override;
+		virtual void FreeMemory() override;
 		/// <summary>
 		/// returns whether the memmory of this form has been freed
 		/// </summary>
 		/// <returns></returns>
-		bool Freed() override;
-		size_t MemorySize() override;
+		virtual bool Freed() override;
+		virtual size_t MemorySize() override;
 
 		virtual bool HasChanged() override;
 	};

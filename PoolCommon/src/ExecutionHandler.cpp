@@ -1015,12 +1015,12 @@ namespace CommonLib
 		return (int32_t)_runningTests.size();
 	}
 
-	int32_t ExecutionHandler::GetStoppingTests()
+	int32_t ExecutionHandler::GetStoppingExecutions()
 	{
-		return (int32_t)_stoppingTests.size();
+		return (int32_t)_stoppingExecutions.size();
 	}
 
-	void ExecutionHandler::ClearTests()
+	void ExecutionHandler::ClearExecutions()
 	{
 		// get top level lock so we cannot get into conflict with top level functions when erasing the tests
 		std::unique_lock<std::mutex> guardtop(_toplevelsync);
@@ -1028,59 +1028,63 @@ namespace CommonLib
 		std::unique_lock<std::mutex> guardqueue(_lockqueue);
 
 		std::unique_lock<std::mutex> guardstart(_startingLock);
-		_waitingTests.clear();
-		while (!_waitingTestsExec.empty()) {
-			std::shared_ptr<Test> test = _waitingTestsExec.front();
-			_waitingTestsExec.pop_front();
-			test->InValidatePreExec();
+		_waitingExecutions.clear();
+		while (!_waitingExecutionsExec.empty()) {
+			std::shared_ptr<Test> exec = _waitingExecutionsExec.front();
+			_waitingExecutionsExec.pop_front();
+			exec->InValidatePreExec();
 		}
 		{
-			Utility::SpinLock guard(_runningTestsFlag);
-			auto itr = _runningTests.begin();
-			while (itr != _runningTests.end()) {
+			Spinlock guard(_runningExecutionsFlag);
+			auto itr = _runningExecutions.begin();
+			while (itr != _runningExecutions.end()) {
 				if ( *itr && (*itr)->IsRunning()) {
 					(*itr)->KillProcess();
-					StopTest(*itr);
+					StopExecution(*itr);
 				}
-				if (!_runningTests.empty())
-					_runningTests.pop_front();
-				itr = _runningTests.begin();
+				if (!_runningExecutions.empty())
+					_runningExecutions.pop_front();
+				itr = _runningExecutions.begin();
 			}
 		}
-		while (!_startingTests.empty()) {
-			std::shared_ptr<Test> test = _startingTests.front();
-			_startingTests.pop();
-			test->InValidatePreExec();
+		while (!_startingExecutions.empty()) {
+			std::shared_ptr<Test> exec = _startingExecutions.front();
+			_startingExecutions.pop();
+			exec->InValidatePreExec();
 
 		}
-		_currentTests = 0;
+		_currentExecutions = 0;
 	}
 
-	size_t ExecutionHandler::GetStaticSize(int32_t version)
+	size_t ExecutionHandler::GetDataSize()
 	{
-		static size_t size0x1 = 4                       // version
-								+ 1                     // enableFragments
-								+ 8                     // waittimeL
-								+ 1                     // cleared
-								+ 8                     // nextid
-								+ 1                     // active
-								+ 4;                    // maxConcurrentTests
-		switch (version) {
-		case 0x1:
-			return size0x1;
-		default:
-			return 0;
-		}
+		size_t size = ISerializable::GetDataSize() + 4  // version
+		              + 1                               // enableFragments
+		              + 8                               // waittimeL
+		              + 1                               // cleared
+		              + 8                               // nextid
+		              + 1                               // active
+		              + 4;                              // maxConcurrentExecutions
+
+		size += 8 /*len of ids*/ + _stoppingExecutions.size() * 8       //
+		        + 8 /*len of ids*/ + _runningExecutions.size() * 8      //
+		        + 8 /*len of ids*/ + _waitingExecutions.size() * 8      //
+		        + 8 /*len of ids*/ + _waitingExecutionsExec.size() * 8  //
+			;
 	}
 
-	size_t ExecutionHandler::GetDynamicSize()
+	bool ExecutionHandler::WriteData(Buffer::ArrayBuffer& buffer)
 	{
-		return Form::GetDynamicSize()  // form stuff
-			+ GetStaticSize(classversion) + 8 /*len of ids*/ + _stoppingTests.size() * 8 + _runningTests.size() * 8 + _waitingTests.size() * 8 + _waitingTestsExec.size() * 8;
-	}
+		SAVE_WRITE_EXPR(ISerializable::WriteData(buffer));
 
-	bool ExecutionHandler::WriteData(std::ostream* buffer, size_t& offset, size_t length)
-	{
+		SAVE_WRITE(buffer, uint32_t, version);
+		SAVE_WRITE(buffer, bool, _enableFragments);
+		SAVE_WRITE(buffer, int64_t, _waittimeL);
+		SAVE_WRITE(buffer, bool, _cleared);
+		SAVE_WRITE(buffer, uint64_t, _nextid);
+		SAVE_WRITE(buffer, bool, _active);
+		
+
 		Buffer::Write(classversion, buffer, offset);
 		Form::WriteData(buffer, offset, length);
 		Buffer::Write(_enableFragments, buffer, offset);

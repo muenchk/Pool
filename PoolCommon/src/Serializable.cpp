@@ -23,7 +23,7 @@ namespace CommonLib
 		return size_1;
 	}
 
-	bool ISerializable::WriteData(Buffer::ArrayBuffer& buffer, size_t& offset, size_t)
+	bool ISerializable::WriteData(Buffer::ArrayBuffer& buffer)
 	{
 		SAVE_WRITE(buffer, uint32_t, formversion);
 		SAVE_WRITE(buffer, FormID, _formid);
@@ -34,7 +34,7 @@ namespace CommonLib
 		return true;
 	}
 
-	bool ISerializable::ReadData(Buffer::ArrayBuffer& buffer, size_t& offset, size_t /*length*/, LoadResolver* /*resolver*/)
+	bool ISerializable::ReadData(Buffer::ArrayBuffer& buffer, LoadResolver* /*resolver*/)
 	{
 		// sets saved to true -> form has been read from save
 		__saved = true;

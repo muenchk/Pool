@@ -83,13 +83,13 @@ namespace CommonLib
 		/// </summary>
 		/// <param name="buffer"></param>
 		/// <returns></returns>
-		virtual bool WriteData(Buffer::ArrayBuffer& buffer, size_t& offset, size_t length);
+		virtual bool WriteData(Buffer::ArrayBuffer& buffer);
 		/// <summary>
 		/// reads all relevant information of this instance from the buffer
 		/// </summary>
 		/// <param name="buffer"></param>
 		/// <param name="length"></param>
-		virtual bool ReadData(Buffer::ArrayBuffer& buffer, size_t& offset, size_t length, LoadResolver* resolver) = 0;
+		virtual bool ReadData(Buffer::ArrayBuffer& buffer, LoadResolver* resolver) = 0;
 		/// <summary>
 		/// Early initialiazation pass [is executed once all forms have been loaded
 		/// </summary>
@@ -103,13 +103,13 @@ namespace CommonLib
 		/// <summary>
 		/// Deletes all relevant for fields
 		/// </summary>
-		virtual void Delete(Data* data) = 0;
+		virtual void Delete() = 0;
 		/// <summary>
 		/// returns whether a form can be deleted
 		/// </summary>
 		/// <param name="data"></param>
 		/// <returns></returns>
-		virtual bool CanDelete(Data* data) = 0;
+		virtual bool CanDelete() = 0;
 		/// <summary>
 		/// returns whether the form has been marked deleted
 		/// </summary>
@@ -516,5 +516,15 @@ namespace CommonLib
 	struct std::hash<Ref<T>>
 	{
 		std::size_t operator()(const Ref<T>& r) const noexcept { return std::hash<T*>()(r.get()); }
+	};
+
+	struct FormType
+	{
+		enum FormTypes
+		{
+			ExecutionHandler = 'EXEH',
+			Execution = 'EXEC',
+			TaskHandler = 'TASH',
+		};
 	};
 }

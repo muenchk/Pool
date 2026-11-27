@@ -54,3 +54,4 @@ namespace stl
 
 #include "Version.h"
 #include "Plugin.h"
+#include "Threading.h"

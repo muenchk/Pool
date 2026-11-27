@@ -4,6 +4,8 @@
 */
 
 #include "Execution.h"
+#include "Input.h"
+#include "Serializable.h"
 
 #if defined(unix) || defined(__unix__) || defined(__unix)
 #	include <poll.h>
@@ -45,7 +47,7 @@ extern int __fcntl_time64(int __fd, int __request, ...) __THROW;
 #	include <Windows.h>
 #endif
 
-namespace PoolCommon
+namespace CommonLib
 {
 
 	Execution::Execution(std::shared_ptr<Functions::BaseFunction> a_callback, uint64_t id) :
@@ -519,7 +521,7 @@ namespace PoolCommon
 			logcritical("called KillProcess after invalidation");
 			return false;
 		}
-		logdebug("Test {}: Killed Test", _identifier);
+		logdebug("Execution {}: Killed Execution", _identifier);
 		_endtime = std::chrono::steady_clock::now();
 #if defined(unix) || defined(__unix__) || defined(__unix)
 		return Processes::KillProcess(processid);
@@ -628,88 +630,75 @@ namespace PoolCommon
 #endif
 	}
 
-	size_t Execution::GetStaticSize(int32_t version)
+	size_t Execution::GetDataSize()
 	{
-		static size_t size0x1 = 4     // version
+		static size_t size0x1 = ISerializable::GetDataSize() 
+								+ 4  // version
 		                        + 1   // _running
 		                        + 8   // _starttime
 		                        + 8   // _endtime
-		                        + 8   // formid for _input
 		                        + 8   // _lasttime
 		                        + 8   // _identifier
 		                        + 8   // _exitreason
 		                        + 1   // valid
 		                        + 1   // has _callback
 		                        + 1;  // _skipOracle
-		static size_t size0x2 = size0x1;
 
-		switch (version) {
-		case 0x1:
-			return size0x1;
-		case 0x2:
-			return size0x2;
-		default:
-			return 0;
-		}
-	}
 
-	size_t Execution::GetDynamicSize()
-	{
-		size_t sz = Form::GetDynamicSize()  // form stuff
-		            + GetStaticSize(classversion);
-		sz += Buffer::_sizeof(_lastwritten);
-		sz += Buffer::ArrayBuffer::GetContainerSize(_reactiontime);
+		auto size = size0x1;
+
+		size += Buffer::_sizeof(_lastwritten);
+		size += Buffer::ArrayBuffer::GetContainerSize(_reactiontime);
+		size += Buffer::_sizeof(_cmdArgs);
+		size += Buffer::_sizeof(_scriptArgs);
+		size += Buffer::_sizeof(_input);
 		if (_storeoutput) {
-			sz += Buffer::_sizeof(_output);
+			size += Buffer::_sizeof(_output);
 		} else {
 			std::string str = std::string("");
-			sz += Buffer::_sizeof(str);
+			size += Buffer::_sizeof(str);
 		}
-		//sz += Buffer::CalcStringLength(_cmdArgs);
 		if (_callback)
-			sz += _callback->GetLength() + 8 /*extra for writing to buffer*/;
-		return sz;
+			size += _callback->GetLength() + 8 /*extra for writing to buffer*/;
+
+		return size;
 	}
 
-	bool Execution::WriteData(std::ostream* buffer, size_t& offset, size_t length)
+	bool Execution::WriteData(Buffer::ArrayBuffer& buffer)
 	{
-		Buffer::Write(classversion, buffer, offset);
-		Form::WriteData(buffer, offset, length);
-		/*
-	Buffer::Write(_running, buffer, offset);
-	Buffer::Write(_starttime, buffer, offset);
-	Buffer::Write(_endtime, buffer, offset);
-	// shared ptr
-	if (auto ptr = _input.lock(); ptr) {
-		Buffer::Write(ptr->GetFormID(), buffer, offset);
-	} else {
-		Buffer::Write((FormID)0, buffer, offset);
-	}
-	Buffer::Write(_lastwritten, buffer, offset);
-	Buffer::Write(_lasttime, buffer, offset);
-	Buffer::ListBasic::WriteList(_reactiontime, buffer, offset);
-	if (_storeoutput)
-		Buffer::Write(_output, buffer, offset);
-	else
-		Buffer::Write(std::string(""), buffer, offset);
-	Buffer::Write(_identifier, buffer, offset);
-	Buffer::Write(_exitreason, buffer, offset);
-	Buffer::Write(_valid, buffer, offset);
-	Buffer::Write(_callback.operator bool(), buffer, offset);
-	if (_callback)
-		_callback->WriteData(buffer, offset);
-	Buffer::Write(_skipOracle, buffer, offset);*/
+		SAVE_WRITE_EXPR(ISerializable::WriteData(buffer));
 
-		Buffer::ArrayBuffer abuf(length - offset);
+		SAVE_WRITE(buffer, uint32_t, classversion)
+		SAVE_WRITE(buffer, bool, _running);
+		SAVE_WRITE(buffer, std::chrono::steady_clock::time_point, _starttime);
+		SAVE_WRITE(buffer, std::chrono::steady_clock::time_point, _endtime);
+
+		SAVE_WRITE_LIST(buffer, uint64_t, _reactiontime);
+		SAVE_WRITE(buffer, String, _cmdArgs);
+		SAVE_WRITE(buffer, String, _scriptArgs);
+		SAVE_WRITE(buffer, String, _input);
+		if (_storeoutput) {
+			SAVE_WRITE(buffer, String, _output);
+		}
+		else {
+			SAVE_WRITE(buffer, std::string, std::string(""));
+		}
+
+		SAVE_WRITE(buffer, uint64_t, _identifier);
+		SAVE_WRITE(buffer, uint64_t, _exitreason);
+		SAVE_WRITE(buffer, bool, _valid);
+		SAVE_WRITE(buffer, bool, _callback.operator bool());
+		if (_callback) {
+			size_t sz = 0;
+			auto buf = _callback->GetData(sz);
+			SAVE_WRITE_BUFFER(buffer, buf, sz);
+		}
+		SAVE_WRITE(buffer, bool, _skipOracle);
+		/*
 		try {
 			CHECK(abuf.Write(_running));
 			CHECK(abuf.Write(_starttime));
 			CHECK(abuf.Write(_endtime));
-			if (auto ptr = _input.lock(); ptr) {
-				CHECK(abuf.Write<FormID>(ptr->GetFormID()));
-			} else {
-				CHECK(abuf.Write<FormID>(0));
-			}
 			CHECK(abuf.Write(_lastwritten));
 			CHECK(abuf.Write(_lasttime));
 			CHECK(abuf.WriteList(_reactiontime));
@@ -718,6 +707,7 @@ namespace PoolCommon
 			} else {
 				CHECK(abuf.Write<std::string>(""));
 			}
+			CHECK(abuf.Write(_cmdArgs));
 			CHECK(abuf.Write(_identifier));
 			CHECK(abuf.Write(_exitreason));
 			CHECK(abuf.Write(_valid));
@@ -734,103 +724,46 @@ namespace PoolCommon
 			buffer->write((char*)data, sz);
 			offset += sz;
 			return false;
-		}
-
-		auto [data, sz] = abuf.GetBuffer();
-		buffer->write((char*)data, sz);
-		offset += sz;
-
-		if (offset - 12 > GetDynamicSize()) {
-			logcritical("Overflow in Test::WriteData");
-			//auto sz = GetDynamicSize();
-		}
+		}*/
 
 		__hash = Hashing::hash(this);
 		return true;
 	}
 
-	bool Execution::ReadData(std::istream* buffer, size_t& offset, size_t length, LoadResolver* resolver)
+	bool Execution::ReadData(Buffer::ArrayBuffer& buffer, LoadResolver* resolver)
 	{
+		ISerializable::ReadData(buffer, resolver);
+
 		if (_loadData)
 			delete _loadData;
 		_loadData = new LoadData();
 
-		size_t initoff = offset;
-		int32_t version = Buffer::ReadInt32(buffer, offset);
+		int32_t version = buffer.Read<uint32_t>();
 		switch (version) {
 		case 0x1:
 			{
-				if (length < GetStaticSize(version))
-					return false;
-				Form::ReadData(buffer, offset, length, resolver);
-				_running = Buffer::ReadBool(buffer, offset);
-				_starttime = Buffer::ReadTime(buffer, offset);
-				_endtime = Buffer::ReadTime(buffer, offset);
-				_loadData->formid = Buffer::ReadUInt64(buffer, offset);
-				//if (length < offset - initoff + 8 || length < offset - initoff + Buffer::CalcStringLength(buffer, offset))
-				//	return false;
-				_lastwritten = Buffer::ReadString(buffer, offset);
-				_lasttime = Buffer::ReadTime(buffer, offset);
-				//if (length < offset - initoff + 8 || length < offset - initoff + Buffer::ListBasic::GetListLength(buffer, offset))
-				//	return false;
-				Buffer::ListBasic::ReadList(_reactiontime, buffer, offset);
-				//if (length < offset - initoff + 8 || length < offset - initoff + Buffer::CalcStringLength(buffer, offset))
-				//	return false;
-				_output = Buffer::ReadString(buffer, offset);
-				if (_output.empty() == false)
-					_storeoutput = true;
-				_identifier = Buffer::ReadUInt64(buffer, offset);
-				_exitreason = Buffer::ReadUInt64(buffer, offset);
-				_valid = Buffer::ReadBool(buffer, offset);
-				bool hascall = Buffer::ReadBool(buffer, offset);
-				if (hascall)
-					_callback = Functions::BaseFunction::Create(buffer, offset, length, resolver);
-				_skipOracle = Buffer::ReadBool(buffer, offset);
-				// if this is a valid test that still needs to be run, generate the _cmdArgs anew
-				//if (valid) {
-				//	resolver->AddLateTask([this, resolver]() {
-				//		bool stateerror = false;
-				//		this->_cmdArgs = Lua::GetCmdArgs(std::bind(&Oracle::GetCmdArgs, resolver->_oracle, std::placeholders::_1, std::placeholders::_2), this, stateerror);
-				//		if (stateerror) {
-				//			logcritical("Read Test cannot be completed, as the calling thread lacks a lua context.");
-				//			this->valid = false;
-				//		}
-				//	});
-				//}
-				// otherwise just leave them as is, we can generate them if we ever need them
-				//else
-				_cmdArgs = "";
-				// do not init here, or we create an insane amount of useless file pointers
-				//Init();
-				return true;
-			}
-		case 0x2:
-			{
-				Form::ReadData(buffer, offset, length, resolver);
 				try {
-					Buffer::ArrayBuffer data(buffer, length - offset);
-					offset += length - offset;
-					_running = data.Read<bool>();
-					_starttime = data.Read<std::chrono::steady_clock::time_point>();
-					_endtime = data.Read<std::chrono::steady_clock::time_point>();
-					_loadData->formid = data.Read<FormID>();
-					_lastwritten = data.Read<std::string>();
-					_lasttime = data.Read<std::chrono::steady_clock::time_point>();
-					_reactiontime = data.ReadList<uint64_t>();
-					_output = data.Read<std::string>();
+					_running = buffer.Read<bool>();
+					_starttime = buffer.Read<std::chrono::steady_clock::time_point>();
+					_endtime = buffer.Read<std::chrono::steady_clock::time_point>();
+					_loadData->formid = buffer.Read<FormID>();
+					//_lastwritten = buffer.Read<std::string>();
+					//_lasttime = buffer.Read<std::chrono::steady_clock::time_point>();
+					_reactiontime = buffer.ReadList<uint64_t>();
+					_output = buffer.Read<std::string>();
 					if (_output.empty() == false)
 						_storeoutput = true;
-					_identifier = data.Read<FormID>();
-					_exitreason = data.Read<FormID>();
-					_valid = data.Read<bool>();
-					bool hascall = data.Read<bool>();
+					_identifier = buffer.Read<FormID>();
+					_exitreason = buffer.Read<FormID>();
+					_valid = buffer.Read<bool>();
+					bool hascall = buffer.Read<bool>();
 					if (hascall) {
 						int64_t len = 0;
-						unsigned char* buf = data.Read(&len);
+						unsigned char* buf = buffer.Read(&len);
 						size_t off = 0;
 						_callback = Functions::BaseFunction::Create(buf, off, len, resolver);
 					}
-					_skipOracle = data.Read<bool>();
+					_skipOracle = buffer.Read<bool>();
 					_cmdArgs = "";
 				} catch (std::exception& e) {
 					logcritical("Exception in read method: {}", e.what());
@@ -842,25 +775,24 @@ namespace PoolCommon
 		}
 	}
 
-	void Execution::Delete(Data*)
+	void Execution::Delete()
 	{
 		Clear();
 	}
 
 	void Execution::Clear()
 	{
-		Form::ClearForm();
+		ISerializable::ClearForm();
 		_running = false;
-		_executed = 0;
-		_lastwritten = "";
+		//_executed = 0;
+		//_lastwritten = "";
 		_reactiontime.clear();
-		_lua_reactiontime_next = _reactiontime.end();
 		_cmdArgs.reset();
 		_scriptArgs.reset();
 		_output.reset();
 		_exitreason = ExitReason::Running;
 		_skipOracle = false;
-		_skipExclusionCheck = false;
+		//_skipExclusionCheck = false;
 		_valid = true;
 		_pipeinit = false;
 		_input.reset();
@@ -896,7 +828,7 @@ namespace PoolCommon
 		return sizeof(Execution) + _output.size() + _cmdArgs.size() + _scriptArgs.size() + _reactiontime.size() * sizeof(uint64_t) * 2;
 	}
 
-	void Execution::DeepCopy(std::shared_ptr<Test> other)
+	void Execution::DeepCopy(Ref<Execution> other)
 	{
 		other->_valid = _valid;
 		other->_exitreason = _exitreason;
@@ -922,38 +854,36 @@ namespace PoolCommon
 
 namespace Hashing
 {
-	size_t hash(PoolCommon::Execution* test)
+	size_t hash(CommonLib::Execution* exec)
 	{
-		if (!test)
+		if (!exec)
 			return 0;
 		size_t hs = 0;
 
-		hs = std::hash<bool>{}(test->_running);
-		hs = hs ^ (std::hash<uint64_t>{}(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point_cast<std::chrono::nanoseconds>(test->_starttime).time_since_epoch()).count()) << 1);
-		hs = hs ^ (std::hash<uint64_t>{}(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point_cast<std::chrono::nanoseconds>(test->_endtime).time_since_epoch()).count()) << 1);
-		if (auto ptr = test->_input.lock(); ptr)
+		hs = std::hash<bool>{}(exec->_running);
+		hs = hs ^ (std::hash<uint64_t>{}(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point_cast<std::chrono::nanoseconds>(exec->_starttime).time_since_epoch()).count()) << 1);
+		hs = hs ^ (std::hash<uint64_t>{}(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point_cast<std::chrono::nanoseconds>(exec->_endtime).time_since_epoch()).count()) << 1);
+		if (auto ptr = exec->_input.lock(); ptr)
 			hs = hs ^ (std::hash<FormID>{}(ptr->GetFormID()) << 1);
 		else
 			hs = hs ^ (std::hash<FormID>{}(0) << 1);
 
-		hs = hs ^ (std::hash<std::string>{}(test->_lastwritten) << 1);
-		hs = hs ^ (std::hash<uint64_t>{}(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point_cast<std::chrono::nanoseconds>(test->_lasttime).time_since_epoch()).count()) << 1);
-		hs = hs ^ (Hashing::hash(test->_reactiontime) << 1);
-		hs = hs ^ (std::hash<std::string>{}(test->_output) << 1);
-		hs = hs ^ (std::hash<bool>{}(test->_storeoutput) << 1);
-		hs = hs ^ (std::hash<uint64_t>{}(test->_identifier) << 1);
-		hs = hs ^ (std::hash<uint64_t>{}(test->_exitreason) << 1);
-		hs = hs ^ (std::hash<bool>{}(test->_skipOracle) << 1);
-		hs = hs ^ (std::hash<bool>{}(test->_valid) << 1);
+		hs = hs ^ (std::hash<std::string>{}(exec->_lastwritten) << 1);
+		hs = hs ^ (std::hash<uint64_t>{}(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::time_point_cast<std::chrono::nanoseconds>(exec->_lasttime).time_since_epoch()).count()) << 1);
+		hs = hs ^ (Hashing::hash(exec->_reactiontime) << 1);
+		hs = hs ^ (std::hash<std::string>{}(exec->_output) << 1);
+		hs = hs ^ (std::hash<bool>{}(exec->_storeoutput) << 1);
+		hs = hs ^ (std::hash<uint64_t>{}(exec->_identifier) << 1);
+		hs = hs ^ (std::hash<uint64_t>{}(exec->_exitreason) << 1);
+		hs = hs ^ (std::hash<bool>{}(exec->_skipOracle) << 1);
+		hs = hs ^ (std::hash<bool>{}(exec->_valid) << 1);
 		return hs;
 	}
 }
 
-void Test::RegisterFactories()
+void Execution::RegisterFactories()
 {
 	if (!_registeredFactories) {
 		_registeredFactories = !_registeredFactories;
-		Functions::RegisterFactory(Functions::TestCallback::GetTypeStatic(), Functions::TestCallback::Create);
-		Functions::RegisterFactory(Functions::ReplayTestCallback::GetTypeStatic(), Functions::ReplayTestCallback::Create);
 	}
 }

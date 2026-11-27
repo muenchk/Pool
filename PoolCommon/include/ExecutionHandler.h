@@ -249,7 +249,7 @@ namespace CommonLib
 		/// <summary>
 		/// class version
 		/// </summary>
-		const int32_t classversion = 0x1;
+		const uint32_t version = 0x1;
 
 		void InitExecutionsLockFree();
 
@@ -331,7 +331,7 @@ namespace CommonLib
 		/// <param name="input">The input to run the Execution on</param>
 		/// <param name="callback">called after the Execution has been finished</param>
 		/// <param name="bypass">Bypass queue and start as soon as possible</param>
-		bool AddTest(std::shared_ptr<Input> input, std::shared_ptr<Functions::BaseFunction> callback, bool bypass = false, bool replay = false);
+		bool AddTest(std::shared_ptr<IInput> input, std::shared_ptr<Functions::BaseFunction> callback, bool bypass = false, bool replay = false);
 
 		void InitExecutions();
 
@@ -381,9 +381,8 @@ namespace CommonLib
 		/// <returns></returns>
 		ExecHandlerStatus GetThreadStatus();
 
-		size_t GetStaticSize(int32_t version = 0x1) override;
-		size_t GetDynamicSize() override;
-		bool WriteData(std::ostream* buffer, size_t& offset, size_t length) override;
+		size_t GetDataSize() override;
+		bool WriteData(Buffer::ArrayBuffer& buffer) override;
 		bool ReadData(std::istream* buffer, size_t& offset, size_t length, LoadResolver* resolver) override;
 		/// <summary>
 		/// Early initialiazation pass [is executed once all forms have been loaded
